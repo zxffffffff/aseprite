@@ -754,8 +754,11 @@ void Editor::drawOneSpriteUnclippedRect(ui::Graphics* g, const gfx::Rect& sprite
   }
 
   if (rendered && rendered->nativeHandle()) {
+    os::Paint p;
     if (newEngine) {
       os::Sampling sampling;
+      p.srcEdges(os::Paint::SrcEdges::Fast); // Enable mipmaps if possible
+
       if (m_proj.scaleX() < 1.0) {
         switch (pref.editor.downsampling()) {
           case gen::Downsampling::NEAREST:
@@ -775,7 +778,6 @@ void Editor::drawOneSpriteUnclippedRect(ui::Graphics* g, const gfx::Rect& sprite
         }
       }
 
-      os::Paint p;
       if (renderProperties.requiresRgbaBackbuffer)
         p.blendMode(os::BlendMode::SrcOver);
       else
@@ -788,7 +790,11 @@ void Editor::drawOneSpriteUnclippedRect(ui::Graphics* g, const gfx::Rect& sprite
                      &p);
     }
     else {
-      g->blit(rendered.get(), 0, 0, dest.x, dest.y, dest.w, dest.h);
+      g->drawSurface(rendered.get(),
+                     gfx::Rect(0, 0, dest.w, dest.h),
+                     gfx::Rect(dest.x, dest.y, dest.w, dest.h),
+                     os::Sampling(os::Sampling::Filter::Nearest),
+                     &p);
     }
   }
 
@@ -2648,7 +2654,9 @@ void Editor::setZoomAndCenterInMouse(const Zoom& zoom,
   }
 }
 
-void Editor::pasteImage(const Image* image, const Mask* mask)
+void Editor::pasteImage(const Image* image,
+                        const Mask* mask,
+                        const gfx::Point* position)
 {
   ASSERT(image);
 
@@ -2680,11 +2688,14 @@ void Editor::pasteImage(const Image* image, const Mask* mask)
   Sprite* sprite = this->sprite();
 
   // Check bounds where the image will be pasted.
-  int x = mask->bounds().x;
-  int y = mask->bounds().y;
+  int x = (position ? position->x : mask->bounds().x);
+  int y = (position ? position->y : mask->bounds().y);
   {
     const Rect visibleBounds = getViewportBounds();
-    const Point maskCenter = mask->bounds().center();
+    const Point maskCenter = mask->bounds().center() +
+      (position ? gfx::Point(position->x - mask->bounds().x,
+                             position->y - mask->bounds().y)
+                : gfx::Point());
 
     // If the pasted image original location center point isn't
     // visible, we center the image in the editor's visible bounds.
@@ -2737,7 +2748,8 @@ void Editor::pasteImage(const Image* image, const Mask* mask)
   m_brushPreview.hide();
 
   Mask mask2(*mask);
-  mask2.setOrigin(x, y);
+  position ? mask2.setOrigin(position->x, position->y)
+           : mask2.setOrigin(x, y);
 
   PixelsMovementPtr pixelsMovement(
     new PixelsMovement(UIContext::instance(), site,

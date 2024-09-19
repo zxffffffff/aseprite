@@ -16,7 +16,7 @@ endif()
 if(MSVC)
   # As Skia is compiled with /GL flag (whole program optimization),
   # the linker prefer a /LTCG parameter to improve link times.
-  if(LAF_OS_BACKEND STREQUAL "skia")
+  if(LAF_BACKEND STREQUAL "skia")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LTCG")
   endif()
 
@@ -102,21 +102,24 @@ set(DATA_OUTPUT_DIR ${CMAKE_BINARY_DIR}/bin/data)
 ######################################################################
 # Clone "strings" repo with translations into bin/data/strings.git
 
-include(FetchContent)
-
-find_package(Git)
-if(GIT_FOUND)
-  FetchContent_Declare(
-    clone_strings
-    GIT_REPOSITORY    https://github.com/aseprite/strings.git
-    GIT_TAG           origin/main
-    SOURCE_DIR        ${DATA_OUTPUT_DIR}/strings.git
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND     ""
-    INSTALL_COMMAND   ""
-    TEST_COMMAND      "")
-  FetchContent_MakeAvailable(clone_strings)
-  add_custom_target(clone_strings DEPENDS clone_strings)
+if(ENABLE_I18N_STRINGS)
+  include(FetchContent)
+  find_package(Git)
+  if(GIT_FOUND)
+    FetchContent_Declare(
+      clone_strings
+      GIT_REPOSITORY    https://github.com/aseprite/strings.git
+      GIT_TAG           origin/main
+      SOURCE_DIR        ${DATA_OUTPUT_DIR}/strings.git
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND     ""
+      INSTALL_COMMAND   ""
+      TEST_COMMAND      "")
+    FetchContent_MakeAvailable(clone_strings)
+    add_custom_target(clone_strings DEPENDS clone_strings)
+  else()
+    add_custom_target(clone_strings)
+  endif()
 else()
   add_custom_target(clone_strings)
 endif()
@@ -134,7 +137,7 @@ foreach(fn ${src_data_files})
   list(APPEND out_data_files ${DATA_OUTPUT_DIR}/${fn})
 endforeach()
 
-if(GIT_FOUND)
+if(ENABLE_I18N_STRINGS AND GIT_FOUND)
   # Copy original en.ini to strings.git/en.ini to keep it updated. We
   # have to manually sync the "en.ini" file in the "strings" repo from
   # the "aseprite" repo.
@@ -180,7 +183,7 @@ if(ENABLE_ASEPRITE_EXE)
   add_executable(${main_target}
     main/main.cpp
     ${main_resources})
-  if(ENABLE_UI)
+  if(LAF_BACKEND STREQUAL "skia")
     if(WIN32)
       set_target_properties(${main_target} PROPERTIES WIN32_EXECUTABLE true)
     endif()
@@ -189,9 +192,9 @@ if(ENABLE_ASEPRITE_EXE)
   target_link_libraries(${main_target} app-lib)
   add_dependencies(${main_target} copy_data)
 
-  if(LAF_OS_BACKEND_LINK_FLAGS)
+  if(LAF_BACKEND_LINK_FLAGS)
     set_target_properties(${main_target} PROPERTIES LINK_FLAGS
-      ${LAF_OS_BACKEND_LINK_FLAGS})
+      ${LAF_BACKEND_LINK_FLAGS})
   endif()
 
   install(TARGETS ${main_target}

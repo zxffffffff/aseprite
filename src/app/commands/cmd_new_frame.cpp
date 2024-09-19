@@ -1,5 +1,5 @@
 // Aseprite
-// Copyright (C) 2018-2023  Igara Studio S.A.
+// Copyright (C) 2018-2024  Igara Studio S.A.
 // Copyright (C) 2001-2018  David Capello
 //
 // This program is distributed under the terms of
@@ -29,7 +29,6 @@
 #include "doc/image.h"
 #include "doc/layer.h"
 #include "doc/sprite.h"
-#include "fmt/format.h"
 #include "ui/ui.h"
 
 #include <stdexcept>
@@ -94,12 +93,10 @@ void NewFrameCommand::onExecute(Context* context)
   Doc* document(writer.document());
   Sprite* sprite(writer.sprite());
 
-#if ENABLE_UI
   // Show the tooltip feedback only if we are not inside a transaction
   // (e.g. we can be already in a transaction if we are running in a
   // Lua script app.transaction()).
   const bool showTooltip = (document->transaction() == nullptr);
-#endif
 
   {
     Tx tx(writer, friendlyName());
@@ -128,11 +125,9 @@ void NewFrameCommand::onExecute(Context* context)
         if (site->inTimeline() &&
             !site->selectedLayers().empty() &&
             !site->selectedFrames().empty()) {
-#if ENABLE_UI
           auto timeline = App::instance()->timeline();
           timeline->prepareToMoveRange();
           DocRange range = timeline->range();
-#endif
 
           SelectedLayers selLayers;
           if (site->inFrames())
@@ -157,10 +152,8 @@ void NewFrameCommand::onExecute(Context* context)
             }
           }
 
-#ifdef ENABLE_UI                // TODO the range should be part of the Site
           range.displace(0, frameRange);
           timeline->moveRange(range);
-#endif
         }
         else if (auto layer = static_cast<LayerImage*>(writer.layer())) {
           api.copyCel(
@@ -176,19 +169,16 @@ void NewFrameCommand::onExecute(Context* context)
     tx.commit();
   }
 
-#ifdef ENABLE_UI
   if (context->isUIAvailable() && showTooltip) {
     update_screen_for_document(document);
 
     StatusBar::instance()->showTip(
-      1000, fmt::format(
-        Strings::commands_NewFrame_tooltip(),
+      1000, Strings::commands_NewFrame_tooltip(
         (int)context->activeSite().frame()+1,
         (int)sprite->totalFrames()));
 
     App::instance()->mainWindow()->popTimeline();
   }
-#endif
 }
 
 std::string NewFrameCommand::onGetFriendlyName() const

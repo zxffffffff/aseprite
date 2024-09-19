@@ -13,6 +13,7 @@
 #include "doc/cel_data.h"
 #include "doc/cel_list.h"
 #include "doc/color.h"
+#include "doc/fit_criteria.h"
 #include "doc/frame.h"
 #include "doc/image_buffer.h"
 #include "doc/image_ref.h"
@@ -127,7 +128,14 @@ namespace doc {
     static void SetDefaultRgbMapAlgorithm(const RgbMapAlgorithm mapAlgo);
 
     const gfx::Rect& gridBounds() const { return m_gridBounds; }
-    void setGridBounds(const gfx::Rect& rc) { m_gridBounds = rc; }
+    void setGridBounds(const gfx::Rect& rc) {
+      m_gridBounds = rc;
+      // Prevent setting an empty grid bounds
+      if (m_gridBounds.w <= 0)
+        m_gridBounds.w = 1;
+      if (m_gridBounds.h <= 0)
+        m_gridBounds.h = 1;
+    }
 
     virtual int getMemSize() const override;
 
@@ -160,7 +168,8 @@ namespace doc {
                    const RgbMapFor forLayer) const;
     RgbMap* rgbMap(const frame_t frame,
                    const RgbMapFor forLayer,
-                   RgbMapAlgorithm mapAlgo) const;
+                   const RgbMapAlgorithm mapAlgo,
+                   const FitCriteria fitCriteria = FitCriteria::DEFAULT) const;
 
     ////////////////////////////////////////
     // Frames
@@ -256,7 +265,6 @@ namespace doc {
     gfx::Rect m_gridBounds;                // grid settings
 
     // Current rgb map
-    mutable RgbMapAlgorithm m_rgbMapAlgorithm;
     mutable std::unique_ptr<RgbMap> m_rgbMap;
 
     Tags m_tags;
