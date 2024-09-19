@@ -4,6 +4,14 @@ set -e
 root_path=$(dirname $(readlink -f "$0"))
 cd ${root_path}
 
+# 1. 根据 INSTALL.md 查看 Skia 发布的依赖库
+# https://github.com/aseprite/skia/releases
+
+# 2. 更新 main 分支和子模块
+git submodule update --init --recursive
+
+# 3. 编译
+rm -rf build
 cmake -B build -S . \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
@@ -19,6 +27,7 @@ cmake -B build -S . \
 cd ${root_path}/build
 ninja aseprite
 
+# 4. 制作 .app
 cd ${root_path}/build/bin
 mkdir -p aseprite.app/Contents/MacOS
 mkdir -p aseprite.app/Contents/Resources
